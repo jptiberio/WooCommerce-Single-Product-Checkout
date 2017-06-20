@@ -125,7 +125,22 @@ class WooCommerce_Single_Product_Checkout_Frontend extends WooCommerce_Single_Pr
             
             if(! empty($productids)){
                 foreach($productids as $id){
-                    $status = $this->get_product_status($id); 
+
+                    $product_data = wc_get_product($id);
+                    $product_id = $product_data->get_parent_id();
+                    $product_type = $product_data->get_type();
+
+                    if ($product_type == 'variation') {
+                        $status = get_post_meta( $product_id, WC_SPC_DBKEY.'product_status' );
+
+                        if($status) {
+                            wc_add_notice('Você possui um produto de assinatura no carrinho. Por favor, conclua essa assinatura antes de adicionar outro produto.' ,'error');
+                            return false;
+                        }
+                    }
+
+                    $status = get_post_meta( $id, WC_SPC_DBKEY.'product_status' );
+
                     if(!empty($status)){
                         
                         wc_add_notice(self::func()->get_error_message(WC_SPC_DBKEY.'single_product_other_error'),'error');
@@ -134,13 +149,11 @@ class WooCommerce_Single_Product_Checkout_Frontend extends WooCommerce_Single_Pr
                         continue;
                     }
                 } 
-            } 
+            }
         }
         
         return true;
     }
-     
-    
     
     public function check_cart_contents($product_id){
         $productids = $this->get_product_ids_from_cart();
@@ -188,7 +201,7 @@ class WooCommerce_Single_Product_Checkout_Frontend extends WooCommerce_Single_Pr
         if(is_object($woocommerce->cart) && sizeof($woocommerce->cart->get_cart()) > 0){
              foreach($woocommerce->cart->get_cart() as $cart_item_key => $values){
                  $_product = $values['data'];
-                 if($_product->id == $product_ID){
+                 if($_product->get_id() == $product_ID){
                     return $values['quantity'];
                  }
             }
@@ -205,7 +218,7 @@ class WooCommerce_Single_Product_Checkout_Frontend extends WooCommerce_Single_Pr
         if(is_object($woocommerce->cart) && sizeof($woocommerce->cart->get_cart()) > 0){
              foreach($woocommerce->cart->get_cart() as $cart_item_key => $values){
                  $_product = $values['data'];
-                 $product_ids[] = $_product->id;
+                 $product_ids[] = $_product->get_id();
             }
         }
         return $product_ids;
@@ -214,14 +227,17 @@ class WooCommerce_Single_Product_Checkout_Frontend extends WooCommerce_Single_Pr
     
     public function change_redirect_url($url){
         $redirect_to = self::func()->get_options(WC_SPC_DBKEY.'redirect_to');
-        if($this->is_in_cart_single_checkout){
+        if(empty($redirect_to)){$redirect_to = 'cart';}
+        $new_url = null;
+       // if($this->is_in_cart_single_checkout){
             if($redirect_to == 'checkout'){
                 $new_url = WC()->cart->get_checkout_url();
             } else if($redirect_to == 'cart'){
                 $new_url = WC()->cart->get_cart_url();
             }
+            
             return $new_url;
-        }
+        //}
         return $url;
     }
 }
